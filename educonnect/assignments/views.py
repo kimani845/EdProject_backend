@@ -42,7 +42,7 @@ def submit_assignment(request, assignment_id):
         # Check if the student is enrolled in the class
         if not Enrollment.objects.filter(
             student=request.user,
-            class_instance=assignment.class_instance
+            class_instance=assignment.class_instance,
             status= 'enrolled'
         ).exists():
             return Response(
@@ -81,5 +81,62 @@ def submit_assignment(request, assignment_id):
     except Assignment.DoesNotExist:
         return Response(
             {'error': 'Assignment not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+        
+# View to allow tutors get assignments
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_submission(request, assingment_id):
+    try:
+        assignment = Assignment.objects.get(id=assingment_id)
+        
+        # Check if user is the tutor of this assignment's class
+        if assignment.class_instance.tutor != request.user:
+            return Response(
+                {'error': 'You are not the tutor of this class'},
+                status=status.HTTP_FORBIDDEN
+            )
+        submissions = Submission.objects.filter(assignment=assignment)
+        serializer = SubmissionSerializer(submissions, many=True)
+        
+        return Response(serializer.data)
+    except Assignment.DoesNotExist:
+        return Response(
+            {'error': 'Assignment not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def grade_submission(request, submission_id):
+    try:
+        submission = Submission.objects.get(id=submission_id)
+    
+    # Check if the user is a tutor
+        if submission.assignment.class_instance.tutor != request.user:
+            return Response(
+                {'error': 'Permission denied, you cannot grade this assignment'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        score = request.data.get('score')
+        feedback = request.data.get('feedback', '')
+        
+        if score is not none:
+            submission.score = score
+            submission.feedback = feedback
+            submission.graded_at = timezone.now()
+            submission.save()
+            return Response(\
+                {'message': 'Submission graded successfully'},
+                status=status.HTTP_200_OK
+            )
+        return Response(
+            {'error': 'Score is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    except Submission.DoesNotExist:
+        return Response(
+            {'error': 'Submission not found'},
             status=status.HTTP_404_NOT_FOUND
         )

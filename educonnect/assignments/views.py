@@ -43,4 +43,43 @@ def submit_assignment(request, assignment_id):
         if not Enrollment.objects.filter(
             student=request.user,
             class_instance=assignment.class_instance
-            ).exists():
+            status= 'enrolled'
+        ).exists():
+            return Response(
+                {'error': 'You are not enrolled in this class'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Check if already submitted
+        existing_Submission = Submission.objects.filter(
+            student=request.user,
+            assignment=assignment
+            ).first()
+        if existing_Submission:
+            # Update the Existing submission
+            serializer = SubmissionSerializer(
+                existing_Submission,
+                data=request.data,
+                partial=True,
+                context={'request': request, 'assignment': assignment}
+            )
+        else:
+            # Create a new submission
+            serializer = SubmissionSerializer(
+                data=request.data, 
+                context={'request': request, 'assignment': assignment}
+            )
+        
+        if serializer.is_valid():
+            submission=serializer.save()
+            return Response(
+                {'submission':SubmissionSerializer(submission).data},
+                status=status.HTTP_201_CREATED
+            )
+            
+        return Response({'error': 'Invalid data'}, status=status.HTTP_400_BAD_REQUEST)
+    except Assignment.DoesNotExist:
+        return Response(
+            {'error': 'Assignment not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )

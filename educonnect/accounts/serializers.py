@@ -50,3 +50,61 @@ class UserLoginSerializer(serializers.Serializer):
     def validate (self, attrs):
         email = attrs.get['email']
         password = attrs.get['password']
+        
+        if email and password:
+            try:
+                user = User.objects.get(email=email)
+                user = authenticate(username=user.username, password=password)
+                if not user:
+                    raise serializers.ValidationError({'email': 'Invalid email or password.'})
+            except User.DoesNotExist:
+                raise serializers.ValidationError({'email': 'Invalid email or password.'})
+        else:
+            raise serializers.ValidationError('Must provide both email and password')
+        
+        attrs ['user'] = user
+        return attrs
+    
+class TutorProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TutorProfile
+        fields = [
+            'subjects',
+            'ratings',
+            'total_ratings',
+            'verified'
+        ]
+        
+class StudentProfileSerializer(serializer.ModelSerializer):
+    class Meta:
+        model = StudentProfile
+        fields = [
+            'grade_level',
+            'School'
+        ]
+        
+class UserSerializer(serializers.ModelSerializer):
+    tutor_profile = TutorProfileSerializer(read_only=True)
+    student_profile = StudentProfileSerializer(read_only=True)
+    
+    class Meta:
+        model = User
+        fields = [
+            'id',
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'phone',
+            'role',
+            'bio',
+            'avatar',
+            'created_at'
+            'tutor_profile',
+            'student_profile',
+        
+        ]
+        
+        read_only_fields = ['id', 'username', 'created_at']
+            
+        

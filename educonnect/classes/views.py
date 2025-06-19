@@ -102,7 +102,7 @@ def rate_tutor(request, class_id):
         # Check if the student was enrolled in this class
         if not Enrollment.objects.filter(
             student=request.user,
-            class_instance=class_instance
+            class_instance=class_instance,
             status_in =['enrolled', 'attended']
         ).exists():
             return Response(
@@ -112,5 +112,42 @@ def rate_tutor(request, class_id):
         rating_data = request.data.copy()
         rating_data['tutor'] = class_instance.tutor.id
         rating_data['class_instance'] = class_instance.id
+        
+        # Check if already rated
+        existing_rating = Rating.objects.filter(
+            student=request.user,
+            tutor=class_instance.tutor,
+            class_instance=class_instance
+        ).first()
+        
+        if existing_rating:
+            serializer = RatingSerializer(existing_rating, data=rating_data, partial=True)
+        else:
+            serializer = RatingSerializer(data=rating_data)
+        
+        if serializer.is_valid:
+            rating=serializer.save(
+                student=request.user,
+                tutor=class_instance.tutor,
+                class_instance=class_instance
+            )
+            
+            # update tutor's average rating'
+            tutor_profile = class_instance.tutor.tutor_profile
+            ratings = Rating.objects.filter(tutor=class_instance.tutor)
+            avg_rating = sum(rating.rating for rating in ratings) / len(ratings)
+            tutor_profile.rating = round(avg_rating, 2)
+            tutor_profile.total_rating= len(ratings)
+            tutor_profile.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    except Class.DoesNotExist:
+        return Response(
+            {'error': 'Class does not exist'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+            
     
         

@@ -13,7 +13,7 @@ class StudentAssignmentView(generics.ListAPIView):
     
     def get_queryset(self):
         # Get Assignments from classes the student is logged in 
-        enrolled_classes = Enrolement.objects.filter(
+        enrolled_classes = Enrollement.objects.filter(
             student=self.request.user,
             status = 'enrolled'
         ).values_list('class_instance', flat=True)

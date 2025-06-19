@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import import Class, Enrollment, Rating
+from .models import Class, Enrollment, Rating
 # Register your models here.
 
 @admin.register(Class)
@@ -15,7 +15,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
     list_filter = ['status', 'enrolled_at']
     search_fields = ['student_first_name', 'student_last_name', 'class_instance_title']
     
-@adming.register(Rating)
+@admin.register(Rating)
 class RatingAdmin(admin.ModelAdmin):
     list_display = ['tutor', 'student', 'class_instance', 'rating', 'created_at']
     list_filter = ['rating', 'created_at']

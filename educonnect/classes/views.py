@@ -51,7 +51,66 @@ class StudentClassView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
-        return Class.objects.filter(enrollment__student=self.request.user)
-
+        enrollments = Enrollment.objects.filter(
+            student=self.request.user,
+            status = 'enrolled'
+            ).values_list('class_instance', flat=True)
+        return Class.objects.filter(id__in=enrollments)
+    
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def enroll_in_class(request, class_id):
+    try:
+        class_instance = Class.objects.get(id=class_id)
+        
+        # Check if already enrolled
+        if Enrollment.objects.filter(
+            student=request.user,
+            class_instance=class_instance
+        ).exists():
+            return Response(
+                {'error': 'Already enrolled in this Class'}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        # Check if the class is full
+        if class_instance.enrolled_student_count >= class_instance.max_students:
+            return Response(
+                {'error': 'Class is full'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
+        enrollment = Enrollment.objects.create(
+            student=request.user,
+            class_instance=class_instance
+        )
+        return Response(
+            EnrollmentSerializer(enrollment).data, 
+            class_instance = class_instance
+        )
+    except Class.DoesNotExist:
+        return Response(
+            {'error': 'Class does not exist'},
+            status=status.HTTP_404_NOT_FOUND
+        )
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def rate_tutor(request, class_id):
+    try:
+        class_instance = Class.objects.get(id=class_id)
+        
+        # Check if the student was enrolled in this class
+        if not Enrollment.objects.filter(
+            student=request.user,
+            class_instance=class_instance
+            status_in =['enrolled', 'attended']
+        ).exists():
+            return Response(
+                {'error': 'You are not enrolled in this class'},
+                status=status.HTTP_400
+            )
+        rating_data = request.data.copy()
+        rating_data['tutor'] = class_instance.tutor.id
+        rating_data['class_instance'] = class_instance.id
     
         
